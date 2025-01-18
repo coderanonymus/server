@@ -1,45 +1,50 @@
 const express = require('express');
+const path = require('path');
 const app = express();
 
 app.use(express.json());
 
-// Store scripts for individual players and a global script
-let playerScripts = {};
-let globalScript = null;
+// Store player data
+const players = {};
 
-// Route to handle scripts sent from Discord
-app.post('/command', (req, res) => {
-    const { action, playerId, script } = req.body;
+// Endpoint to update player data
+app.post('/update_player', (req, res) => {
+    const { playerId, playerName, joinTime } = req.body;
 
-    if (action === 'execute_script' && playerId && script) {
-        console.log(`Received script for Player ${playerId}: ${script}`);
-        playerScripts[playerId] = script; // Save the script for the player
-        return res.status(200).json({ message: `Script received for Player ${playerId}.` });
+    if (!playerId || !playerName || !joinTime) {
+        return res.status(400).json({ error: "Missing player information" });
     }
 
-    if (action === 'execute_global_script' && script) {
-        console.log(`Received global script: ${script}`);
-        globalScript = script; // Save the global script
-        return res.status(200).json({ message: "Global script received and stored." });
+    players[playerId] = {
+        playerName,
+        joinTime,
+        lastUpdate: Date.now(),
+    };
+
+    console.log(`Updated player data: ${JSON.stringify(players[playerId])}`);
+    res.status(200).json({ message: "Player data updated." });
+});
+
+// Endpoint to fetch all players for the dashboard
+app.get('/players', (req, res) => {
+    return res.status(200).json(players);
+});
+
+// Endpoint to execute commands for a specific player
+app.post('/execute', (req, res) => {
+    const { action, playerId, params } = req.body;
+
+    if (!action || !playerId) {
+        return res.status(400).json({ error: "Missing action or playerId" });
     }
 
-    if (action === 'fetch_script' && playerId) {
-        // Fetch player-specific script first, then fallback to global script
-        if (playerScripts[playerId]) {
-            const scriptToSend = playerScripts[playerId];
-            delete playerScripts[playerId]; // Clear the player-specific script after sending
-            console.log(`Sending script to Player ${playerId}: ${scriptToSend}`);
-            return res.status(200).json({ script: scriptToSend });
-        } else if (globalScript) {
-            console.log(`Sending global script to Player ${playerId}: ${globalScript}`);
-            return res.status(200).json({ script: globalScript });
-        } else {
-            console.log(`No script available for Player ${playerId}.`);
-            return res.status(200).json({ script: null });
-        }
-    }
+    console.log(`Executing action: ${action} for Player ${playerId} with params: ${JSON.stringify(params)}`);
+    return res.status(200).json({ message: `Action ${action} executed for Player ${playerId}.` });
+});
 
-    res.status(400).json({ error: "Invalid action or missing parameters" });
+// Serve the dashboard HTML
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dashboard', 'dashboard.html'));
 });
 
 const PORT = process.env.PORT || 3000;
