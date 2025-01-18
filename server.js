@@ -1,50 +1,51 @@
 const express = require('express');
-const path = require('path');
 const app = express();
 
 app.use(express.json());
 
-// Store player data
-const players = {};
+// Store scripts and execution tracking
+let playerScripts = {};
+let globalScript = {
+    script: null,
+    executedPlayers: new Set() // Tracks players who executed the current global script
+};
 
-// Endpoint to update player data
-app.post('/update_player', (req, res) => {
-    const { playerId, playerName, joinTime } = req.body;
+// Route to handle scripts sent from Discord
+app.post('/command', (req, res) => {
+    const { action, playerId, script } = req.body;
 
-    if (!playerId || !playerName || !joinTime) {
-        return res.status(400).json({ error: "Missing player information" });
+    if (action === 'execute_script' && playerId && script) {
+        console.log(`Received script for Player ${playerId}: ${script}`);
+        playerScripts[playerId] = script; // Save the script for the player
+        return res.status(200).json({ message: `Script received for Player ${playerId}.` });
     }
 
-    players[playerId] = {
-        playerName,
-        joinTime,
-        lastUpdate: Date.now(),
-    };
-
-    console.log(`Updated player data: ${JSON.stringify(players[playerId])}`);
-    res.status(200).json({ message: "Player data updated." });
-});
-
-// Endpoint to fetch all players for the dashboard
-app.get('/players', (req, res) => {
-    return res.status(200).json(players);
-});
-
-// Endpoint to execute commands for a specific player
-app.post('/execute', (req, res) => {
-    const { action, playerId, params } = req.body;
-
-    if (!action || !playerId) {
-        return res.status(400).json({ error: "Missing action or playerId" });
+    if (action === 'execute_global_script' && script) {
+        console.log(`Received global script: ${script}`);
+        globalScript = { script, executedPlayers: new Set() }; // Reset global script and tracking
+        return res.status(200).json({ message: "Global script received and stored." });
     }
 
-    console.log(`Executing action: ${action} for Player ${playerId} with params: ${JSON.stringify(params)}`);
-    return res.status(200).json({ message: `Action ${action} executed for Player ${playerId}.` });
-});
+    if (action === 'fetch_script' && playerId) {
+        // Player-specific script
+        if (playerScripts[playerId]) {
+            const scriptToSend = playerScripts[playerId];
+            delete playerScripts[playerId]; // Clear the player-specific script after sending
+            console.log(`Sending script to Player ${playerId}: ${scriptToSend}`);
+            return res.status(200).json({ script: scriptToSend });
+        }
+        // Global script for unexecuted players
+        else if (globalScript.script && !globalScript.executedPlayers.has(playerId)) {
+            globalScript.executedPlayers.add(playerId); // Mark this player as having executed the global script
+            console.log(`Sending global script to Player ${playerId}: ${globalScript.script}`);
+            return res.status(200).json({ script: globalScript.script });
+        } else {
+            console.log(`No script available for Player ${playerId}.`);
+            return res.status(200).json({ script: null });
+        }
+    }
 
-// Serve the dashboard HTML
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dashboard', 'dashboard.html'));
+    res.status(400).json({ error: "Invalid action or missing parameters" });
 });
 
 const PORT = process.env.PORT || 3000;
