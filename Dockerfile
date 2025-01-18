@@ -1,4 +1,3 @@
-
 # Use a base Node.js image
 FROM node:16
 
