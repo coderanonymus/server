@@ -6,20 +6,20 @@ app.use(express.json());
 // Store the latest script to be executed
 let latestScript = null;
 
-// Route to handle Discord commands
+// Route to handle scripts sent from Discord
 app.post('/command', (req, res) => {
     const { action, script } = req.body;
 
     if (action === 'execute_script' && script) {
         console.log(`Received script from Discord: ${script}`);
-        latestScript = script; // Store the script for Roblox to fetch
-        return res.status(200).json({ message: "Script received and ready for execution." });
+        latestScript = script; // Save the script
+        return res.status(200).json({ message: "Script received and stored." });
     }
 
     if (action === 'fetch_script') {
         if (latestScript) {
             const scriptToSend = latestScript;
-            latestScript = null; // Clear the script after fetching to avoid duplicate execution
+            latestScript = null; // Clear the script after sending
             return res.status(200).json({ script: scriptToSend });
         } else {
             return res.status(200).json({ script: null }); // No script available
