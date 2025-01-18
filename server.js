@@ -1,35 +1,35 @@
 const express = require('express');
-const cors = require('cors');
 const app = express();
 
-app.use(cors()); // Enable CORS for testing
-app.use(express.json()); // Parse incoming JSON requests
+app.use(express.json());
+
+// Store the latest script to be executed
+let latestScript = null;
 
 // Route to handle Discord commands
 app.post('/command', (req, res) => {
-    const { action, command } = req.body;
+    const { action, script } = req.body;
 
-    if (action === 'fetch_command') {
-        // Provide the latest command
-        const latestCommand = "example_command"; // Replace with actual logic
-        return res.status(200).json({ command: latestCommand });
-    } else if (action === 'send_command' && command) {
-        // Process the received command
-        console.log(`Received command from Discord: ${command}`);
-        // Forward this to Roblox or store as needed
-        return res.status(200).json({ message: "Command received" });
+    if (action === 'execute_script' && script) {
+        console.log(`Received script from Discord: ${script}`);
+        latestScript = script; // Store the script for Roblox to fetch
+        return res.status(200).json({ message: "Script received and ready for execution." });
+    }
+
+    if (action === 'fetch_script') {
+        if (latestScript) {
+            const scriptToSend = latestScript;
+            latestScript = null; // Clear the script after fetching to avoid duplicate execution
+            return res.status(200).json({ script: scriptToSend });
+        } else {
+            return res.status(200).json({ script: null }); // No script available
+        }
     }
 
     res.status(400).json({ error: "Invalid action or missing parameters" });
 });
 
-// General error handling
-app.use((err, req, res, next) => {
-    console.error("Middleware Error:", err);
-    res.status(500).json({ error: "Internal server error" });
-});
-
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Middleware running on port ${PORT}`);
 });
