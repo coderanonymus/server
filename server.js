@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-let storedJobId = null; // Store JobId temporarily
+let storedJobId = null; // Temporary storage for JobId
 
 // Store JobId from Main Account
 app.post("/command", (req, res) => {
@@ -13,16 +13,18 @@ app.post("/command", (req, res) => {
 
     if (action === "store_jobid") {
         storedJobId = req.body.jobId;
-        console.log("JobId stored:", storedJobId);
+        console.log("[Server] JobId stored:", storedJobId);
         return res.json({ success: true, message: "JobId stored successfully." });
     }
 
-    if (action === "get_jobid") {
+    if (action === "fetch_jobid") {
         if (storedJobId) {
-            console.log("Sending JobId:", storedJobId);
-            return res.json({ jobId: storedJobId });
+            console.log("[Server] Sending JobId:", storedJobId);
+            const jobIdToSend = storedJobId; // Copy the JobId
+            storedJobId = null; // Delete JobId after use
+            return res.json({ jobId: jobIdToSend });
         } else {
-            return res.json({ error: "No JobId available." });
+            return res.status(400).json({ error: "No JobId available." });
         }
     }
 
@@ -30,7 +32,7 @@ app.post("/command", (req, res) => {
 });
 
 // Start Server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000; // Ensure it's running on port 10000
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`[Server] Running on port ${PORT}`);
 });
